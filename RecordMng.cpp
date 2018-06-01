@@ -159,6 +159,7 @@ void CRecordMng::ManageFileSizeSlot()
 
 void CRecordMng::WriteLogSlot()
 {	
+	ManageFileSizeSlot();
 	m_Mtx.lock();
 	if(m_fFile->open(QIODevice::WriteOnly|QIODevice::Append))
 	{
