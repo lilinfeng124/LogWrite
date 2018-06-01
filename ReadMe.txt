@@ -1,0 +1,1 @@
+it's written by llf with Qt in 20180601.Just for log and track the application.
