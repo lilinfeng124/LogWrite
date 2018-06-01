@@ -73,9 +73,9 @@ void CRecordMng::ReadIni()
 		m_nFileMaxSize = 100;
 	}
 	//小于10s或者超过一天都属于无效数据
-	if(m_nCheckTimeSpan<10||m_nCheckTimeSpan>1000*60*60*24)
+	if(m_nCheckTimeSpan<10||m_nCheckTimeSpan>60*60*24)
 	{
-		m_nCheckTimeSpan = 1000*60*60;
+		m_nCheckTimeSpan = 60*60;
 	}
 
 	ini->endGroup();
