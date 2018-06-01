@@ -176,6 +176,8 @@ CRecordMng::~CRecordMng()
 {
 	if(m_bCreateLog)
 	{
+		m_pSizeMngTimer->stop();
+		m_pWriteTimer->stop();
 		WriteLogSlot();
 		m_fFile->close();
 		delete m_fFile;
