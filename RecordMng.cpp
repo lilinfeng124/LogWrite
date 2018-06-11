@@ -11,9 +11,9 @@ QObject(p)
 {
 	
 #ifndef Q_OS_WIN
-	m_strLogFile = QString("/home/ns5000/data/InsituSys.txt");
+	m_strLogFile = QString("/home/ns5000/data/InsituSys1.log");
 #else
-	m_strLogFile = QString("InsituSys.txt");
+	m_strLogFile = QString("InsituSys1.log");
 #endif
 
 	m_fFile = NULL;
@@ -29,7 +29,7 @@ QObject(p)
 		connect(m_pSizeMngTimer,SIGNAL(timeout()),this,SLOT(ManageFileSizeSlot()));
 
 		m_pWriteTimer = new QTimer(this);
-		m_pWriteTimer->setInterval(1000);
+		m_pWriteTimer->setInterval(m_nWriteLogSpan*1000);
 		connect(m_pWriteTimer,SIGNAL(timeout()),this,SLOT(WriteLogSlot()));	
 		
 		m_pSizeMngTimer->start();
@@ -65,10 +65,11 @@ void CRecordMng::ReadIni()
 	ini->beginGroup("LogSetting");
 	m_bDbg = ini->value("DebugEnabled", true).toBool();
 	m_bCreateLog = ini->value("LogEnabled",true).toBool();
-	m_nFileMaxSize  = ini->value("LogMaxSize",10).toInt();
-	m_nCheckTimeSpan = ini->value("CheckTime",10).toInt();
+	m_nFileMaxSize  = ini->value("LogMaxSize",100).toInt();
+	m_nCheckTimeSpan = ini->value("CheckTime",60*60).toInt();
+	m_nWriteLogSpan = ini->value("WriteTime",1).toInt();
 	//不允许用户设置无效数值，大于1g或者小于10M都不允许
-	if(m_nFileMaxSize<10||m_nFileMaxSize>1000)
+	if(m_nFileMaxSize<1||m_nFileMaxSize>1000)
 	{
 		m_nFileMaxSize = 100;
 	}
@@ -76,6 +77,10 @@ void CRecordMng::ReadIni()
 	if(m_nCheckTimeSpan<10||m_nCheckTimeSpan>60*60*24)
 	{
 		m_nCheckTimeSpan = 60*60;
+	}
+	if(m_nWriteLogSpan<1||m_nWriteLogSpan>10)
+	{
+		m_nWriteLogSpan = 5;
 	}
 
 	ini->endGroup();
@@ -91,10 +96,10 @@ void CRecordMng::OutputMsg(QByteArray arry)
 	QByteArray str = strTime+arry+("\r\n");
 	if(m_bCreateLog)
 	{
-		m_Mtx.lock();
+		//m_Mtx.lock();
 		//m_fFile->write(str.toAscii());
 		m_strContentLst.append(str);		
-		m_Mtx.unlock();
+		//m_Mtx.unlock();
 	}
 	if(m_bDbg)
 	{
@@ -104,13 +109,56 @@ void CRecordMng::OutputMsg(QByteArray arry)
 
 void CRecordMng::ManageFileSizeSlot()
 {
+	QDateTime dt1 = QDateTime::currentDateTime();
 	int nSize = m_fFile->size();
-	if(nSize>m_nFileMaxSize*1024*1024)
+	if(nSize>m_nFileMaxSize*1024*1024/2)
 	{
 		m_Mtx.lock();
 		//缩小一半
 		m_fFile->close();
-		if(!m_fFile->open(QIODevice::ReadWrite))
+
+#ifndef Q_OS_WIN
+		if(m_strLogFile==QString("/home/ns5000/data/InsituSys1.log"))
+		{			
+			m_strLogFile = QString("/home/ns5000/data/InsituSys2.log");
+			if(QFile::exists(m_strLogFile))
+			{
+				QFile::remove(m_strLogFile);
+			}
+			m_fFile->setFileName(m_strLogFile);
+		}
+		else
+		{
+			QFile::remove(m_strLogFile);
+			m_strLogFile = QString("/home/ns5000/data/InsituSys1.txt");
+			if(QFile::exists(m_strLogFile))
+			{
+				QFile::remove(m_strLogFile);
+			}
+			m_fFile->setFileName(m_strLogFile);
+		}
+		
+#else
+		if(m_strLogFile == QString("InsituSys1.log"))
+		{
+			m_strLogFile = QString("InsituSys2.log");
+			if(QFile::exists(m_strLogFile))
+			{
+				QFile::remove(m_strLogFile);
+			}
+			m_fFile->setFileName(m_strLogFile);
+		}
+		else
+		{
+			m_strLogFile = QString("InsituSys1.log");
+			if(QFile::exists(m_strLogFile))
+			{
+				QFile::remove(m_strLogFile);
+			}
+			m_fFile->setFileName(m_strLogFile);
+		}
+#endif
+	/*	if(!m_fFile->open(QIODevice::ReadWrite))
 		{
 			m_bCreateLog = false;
 			m_bDbg = true;
@@ -152,14 +200,18 @@ void CRecordMng::ManageFileSizeSlot()
 				}
 			}
 		}
-		m_fFile->close();
+		QDateTime dt2 = QDateTime::currentDateTime();
+		QString strCost = QString("ManageFileSizeSlot cost: %1 s %2 ms").arg(dt1.secsTo(dt2)).arg(dt1.msecsTo(dt2));
+		m_fFile->write(strCost.toAscii());
+		m_fFile->close();*/
+		
+		
 		m_Mtx.unlock();
 	}
 }
 
 void CRecordMng::WriteLogSlot()
 {	
-	ManageFileSizeSlot();
 	m_Mtx.lock();
 	if(m_fFile->open(QIODevice::WriteOnly|QIODevice::Append))
 	{
@@ -193,7 +245,6 @@ CRecordMng* CRecordMng::getInst()
 	}
 	return g_Inst;
 }
-
 
 
 
